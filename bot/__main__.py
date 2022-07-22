@@ -55,7 +55,10 @@ Type /{BotCommands.HelpCommand} to get a list of available commands
     buttons.buildbutton("Repo", "https://github.com/breakdowns/slam-tg-mirror-bot")
     buttons.buildbutton("Channel", "https://t.me/SlamMirrorUpdates")
     reply_markup = InlineKeyboardMarkup(buttons.build_menu(2))
-    LOGGER.info('UID: {} - UN: {} - MSG: {}'.format(update.message.chat.id, update.message.chat.username, update.message.text))
+    LOGGER.info(
+        f'UID: {update.message.chat.id} - UN: {update.message.chat.username} - MSG: {update.message.text}'
+    )
+
     uptime = get_readable_time((time.time() - botStartTime))
     if CustomFilters.authorized_user(update) or CustomFilters.authorized_chat(update):
         if update.message.chat.type == "private" :
@@ -66,30 +69,28 @@ Type /{BotCommands.HelpCommand} to get a list of available commands
         sendMarkup(f"Oops! not a Authorized user.\nPlease deploy your own <b>slam-tg-mirror-bot</b>.", context.bot, update, reply_markup)
 
 def fileshandler(update,context ):
-        print('file')
-        link=''
-        name=''
-        file = None
-        media_array = [update.message.document, update.message.video, update.message.audio]
-        for i in media_array:
-            if i is not None:
-                file = i
-                break
-
-        if not bot_utils.is_url(link) and not bot_utils.is_magnet(link) or len(link) == 0:
-            if file is not None:
-                if file.mime_type != "application/x-bittorrent":
-                    listener = mirror.MirrorListener(bot, update, pswd='', isTar=False, extract=False)
-                    tg_downloader = TelegramDownloadHelper(listener)
-                    ms = update.message
-                    tg_downloader.add_downloadauto(ms, f'{DOWNLOAD_DIR}{listener.uid}/', name)
-                    return
-                else:
-                    if qbit:
-                        file.get_file().download(custom_path=f"/usr/src/app/{file.file_name}")
-                        link = f"/usr/src/app/{file.file_name}"
-                    else:
-                        link = file.get_file().file_path
+    print('file')
+    link=''
+    media_array = [update.message.document, update.message.video, update.message.audio]
+    file = next((i for i in media_array if i is not None), None)
+    if (
+        not bot_utils.is_url(link)
+        and not bot_utils.is_magnet(link)
+        or not link
+    ) and file is not None:
+        if file.mime_type != "application/x-bittorrent":
+            listener = mirror.MirrorListener(bot, update, pswd='', isTar=False, extract=False)
+            tg_downloader = TelegramDownloadHelper(listener)
+            ms = update.message
+            name=''
+            tg_downloader.add_downloadauto(ms, f'{DOWNLOAD_DIR}{listener.uid}/', name)
+            return
+        else:
+            if qbit:
+                file.get_file().download(custom_path=f"/usr/src/app/{file.file_name}")
+                link = f"/usr/src/app/{file.file_name}"
+            else:
+                link = file.get_file().file_path
                         
                         
 def restart(update, context):

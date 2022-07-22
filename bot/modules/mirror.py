@@ -124,7 +124,6 @@ class MirrorListener(listeners.MirrorListeners):
                 fs_utils.clean_download(download.path())
             except Exception as e:
                 LOGGER.error(str(e))
-                pass
             count = len(download_dict)
         if self.message.from_user.username:
             uname = f"@{self.message.from_user.username}"
@@ -154,7 +153,12 @@ class MirrorListener(listeners.MirrorListeners):
                 msg += f'\n<b>Type: </b><code>{typ}</code>'
             buttons = button_build.ButtonMaker()
             if SHORTENER is not None and SHORTENER_API is not None:
-                link=json.loads(requests.get('http://cutt.ly/api/api.php?key={}&short={}'.format(ckey, link)).text)['url']
+                link = json.loads(
+                    requests.get(
+                        f'http://cutt.ly/api/api.php?key={ckey}&short={link}'
+                    ).text
+                )['url']
+
                 link=link['shortLink']
                 print(link)
                 surl = requests.get(f'https://{SHORTENER}/api/{SHORTENER_API}?s={link}').text
@@ -168,8 +172,13 @@ class MirrorListener(listeners.MirrorListeners):
                 if os.path.isdir(f'{DOWNLOAD_DIR}/{self.uid}/{download_dict[self.uid].name()}'):
                     share_url += '/'
                     if SHORTENER is not None and SHORTENER_API is not None:
-                        share_url=json.loads(requests.get('http://cutt.ly/api/api.php?key={}&short={}'.format(ckey, urllib.parse.quote(share_url))).text)['url']
-                        
+                        share_url = json.loads(
+                            requests.get(
+                                f'http://cutt.ly/api/api.php?key={ckey}&short={urllib.parse.quote(share_url)}'
+                            ).text
+                        )['url']
+
+
                         share_url=share_url['shortLink']
                         print(share_url)
                         siurl = requests.get(f'https://{SHORTENER}/api/{SHORTENER_API}?s={share_url}').text#['shortLink']
@@ -180,14 +189,24 @@ class MirrorListener(listeners.MirrorListeners):
                     share_urls = f'{INDEX_URL}/{url_path}?a=view'
                     if SHORTENER is not None and SHORTENER_API is not None:
                         
-                        share_url=json.loads(requests.get('http://cutt.ly/api/api.php?key={}&short={}'.format(ckey, urllib.parse.quote(share_url))).text)['url']
-                        
-                        share_urls=json.loads(requests.get('http://cutt.ly/api/api.php?key={}&short={}'.format(ckey, urllib.parse.quote(share_urls))).text)['url']
+                        share_url = json.loads(
+                            requests.get(
+                                f'http://cutt.ly/api/api.php?key={ckey}&short={urllib.parse.quote(share_url)}'
+                            ).text
+                        )['url']
+
+
+                        share_urls = json.loads(
+                            requests.get(
+                                f'http://cutt.ly/api/api.php?key={ckey}&short={urllib.parse.quote(share_urls)}'
+                            ).text
+                        )['url']
+
                         print(share_url,share_urls)
                         share_url=share_url['shortLink']
                         share_urls=share_urls['shortLink']
                         print(share_url,share_urls)
-                        
+
                         siurl = requests.get(f'https://{SHORTENER}/api/{SHORTENER_API}?s={share_url}').text
                         #print(json.loads(requests.get('http://cutt.ly/api/api.php?key={}&short={}'.format(ckey, share_urls)).text)['url'],json.loads(requests.get('http://cutt.ly/api/api.php?key={}&short={}'.format(ckey, share_url)).text)['url'])
                         siurls = requests.get(f'https://{SHORTENER}/api/{SHORTENER_API}?s={share_urls}').text
@@ -206,10 +225,9 @@ class MirrorListener(listeners.MirrorListeners):
                 buttons.buildbutton(f"{BUTTON_SIX_NAME}", f"{BUTTON_SIX_URL}")
             if CREDIT:
                 uname=CREDIT
-            else:    
-             if self.message.from_user.username:
+            elif self.message.from_user.username:
                 uname = f"@{self.message.from_user.username}"
-             else:
+            else:
                 uname = f'<a href="tg://user?id={self.message.from_user.id}">{self.message.from_user.first_name}</a>'
             if uname is not None:
                 msg += f'\n\ncc: {uname}'
@@ -254,10 +272,12 @@ def _mirror(bot, update, isTar=False, extract=False):
     qbitsel = False
     try:
         link = message_args[1]
-        if link == "qb" or link == "qbs":
+        if link == "qb":
             qbit = True
-            if link == "qbs":
-                qbitsel = True
+            link = message_args[2]
+        elif link == "qbs":
+            qbit = True
+            qbitsel = True
             link = message_args[2]
         print(link)
         if link.startswith("|") or link.startswith("pswd: "):
@@ -288,28 +308,26 @@ def _mirror(bot, update, isTar=False, extract=False):
     link = link.strip()
     reply_to = update.message.reply_to_message
     if reply_to is not None:
-        file = None
         print(update)
         media_array = [reply_to.document, reply_to.video, reply_to.audio]
-        for i in media_array:
-            if i is not None:
-                file = i
-                break
-
-        if not bot_utils.is_url(link) and not bot_utils.is_magnet(link) or len(link) == 0:
-            if file is not None:
-                if file.mime_type != "application/x-bittorrent":
-                    listener = MirrorListener(bot, update, pswd, isTar, extract)
-                    tg_downloader = TelegramDownloadHelper(listener)
-                    ms = update.message
-                    tg_downloader.add_download(ms, f'{DOWNLOAD_DIR}{listener.uid}/', name)
-                    return
+        file = next((i for i in media_array if i is not None), None)
+        if (
+            not bot_utils.is_url(link)
+            and not bot_utils.is_magnet(link)
+            or len(link) == 0
+        ) and file is not None:
+            if file.mime_type != "application/x-bittorrent":
+                listener = MirrorListener(bot, update, pswd, isTar, extract)
+                tg_downloader = TelegramDownloadHelper(listener)
+                ms = update.message
+                tg_downloader.add_download(ms, f'{DOWNLOAD_DIR}{listener.uid}/', name)
+                return
+            else:
+                if qbit:
+                    file.get_file().download(custom_path=f"/usr/src/app/{file.file_name}")
+                    link = f"/usr/src/app/{file.file_name}"
                 else:
-                    if qbit:
-                        file.get_file().download(custom_path=f"/usr/src/app/{file.file_name}")
-                        link = f"/usr/src/app/{file.file_name}"
-                    else:
-                        link = file.get_file().file_path
+                    link = file.get_file().file_path
 
     if not bot_utils.is_url(link) and not bot_utils.is_magnet(link):
         sendMessage('No download source provided', bot, update)
@@ -337,7 +355,7 @@ def _mirror(bot, update, isTar=False, extract=False):
             sendMessage(res, bot, update)
             return
         if TAR_UNZIP_LIMIT is not None:
-            LOGGER.info(f'Checking File/Folder Size')
+            LOGGER.info('Checking File/Folder Size')
             limit = TAR_UNZIP_LIMIT
             limit = limit.split(' ', maxsplit=1)
             limitint = int(limit[0])

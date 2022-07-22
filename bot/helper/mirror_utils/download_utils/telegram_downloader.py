@@ -77,18 +77,13 @@ class TelegramDownloadHelper(DownloadHelper):
         )
         if download is not None:
             self.__onDownloadComplete()
-        else:
-            if not self.__is_cancelled:
-                self.__onDownloadError('Internal error occurred')
+        elif not self.__is_cancelled:
+            self.__onDownloadError('Internal error occurred')
 
     def add_download(self, message, path, filename):
         _message = self._bot.get_messages(message.chat.id, reply_to_message_ids=message.message_id)
-        media = None
         media_array = [_message.document, _message.video, _message.audio]
-        for i in media_array:
-            if i is not None:
-                media = i
-                break
+        media = next((i for i in media_array if i is not None), None)
         if media is not None:
             with global_lock:
                 # For avoiding locking the thread lock for long time unnecessarily
@@ -98,12 +93,12 @@ class TelegramDownloadHelper(DownloadHelper):
             else:
                 name = filename
                 path = path + name
-            
+
             if download:
                 if STOP_DUPLICATE:
-                    LOGGER.info(f"Checking File/Folder if already in Drive...")
+                    LOGGER.info("Checking File/Folder if already in Drive...")
                     if self.__listener.isTar:
-                        name = name + ".tar"
+                        name = f"{name}.tar"
                     if self.__listener.extract:           
                         smsg = None
                     else:
@@ -126,41 +121,26 @@ class TelegramDownloadHelper(DownloadHelper):
         self.__is_cancelled = True
     def add_downloadauto(self, message, path, filename):
         _message = self._bot.get_messages(message.chat.id, message_ids =message.message_id)
-        media = None
         media_array = [_message.document, _message.video, _message.audio]
-        for i in media_array:
-            if i is not None:
-                media = i
-                break
+        media = next((i for i in media_array if i is not None), None)
         if media is not None:
             with global_lock:
                 # For avoiding locking the thread lock for long time unnecessarily
                 download = media.file_id not in GLOBAL_GID
-            if filename == "":
-                name = media.file_name
-                if AUTO_RE_REM :
-                 for i in AUTO_RE_REM.split(','):
-                    if i in name:
-                        name=name.replace(i,'')
-                if AUTO_RE_ADD :        
-                 name =name.replace('.'+name.split('.')[-1],'')+AUTO_RE_ADD+'.'+name.split('.')[-1]
-                name=name.replace('_','.')
-                path = path + name
-            else:
-                name = filename          
-                if AUTO_RE_REM :
-                 for i in AUTO_RE_REM.split(','):
-                    if i in name:
-                        name=name.replace(i,'')
-                if AUTO_RE_ADD :        
-                 name =name.replace('.'+name.split('.')[-1],'')+AUTO_RE_ADD+'.'+ name.split('.')[-1]
-                name=name.replace('_','.')
-                path = path + name     
+            name = media.file_name if filename == "" else filename
+            if AUTO_RE_REM :
+             for i in AUTO_RE_REM.split(','):
+                if i in name:
+                    name=name.replace(i,'')
+            if AUTO_RE_ADD :        
+             name =name.replace('.'+name.split('.')[-1],'')+AUTO_RE_ADD+'.'+name.split('.')[-1]
+            name=name.replace('_','.')
+            path = path + name
             if download:
                 if STOP_DUPLICATE:
-                    LOGGER.info(f"Checking File/Folder if already in Drive...")
+                    LOGGER.info("Checking File/Folder if already in Drive...")
                     if self.__listener.isTar:
-                        name = name + ".tar"
+                        name = f"{name}.tar"
                     if self.__listener.extract:           
                         smsg = None
                     else:
